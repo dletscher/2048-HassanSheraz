@@ -157,6 +157,6 @@ if __name__ == '__main__':
     agent = Player(timeLimit=1.0) 
     data_file = 'MyData.pkl' 
     agent.loadData(data_file)
-    training_games = 500000 
+    training_games = 1000 
     agent.train(training_games)
     agent.saveData(data_file)
