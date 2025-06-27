@@ -51,7 +51,12 @@ class Player(BasePlayer):
                 max_tile_power * max_tile_weight)
 
     def findMove(self, board):
-        best_move_so_far = random.choice(board.actions())
+        actions = board.actions()
+        if not actions:
+            self.setMove(None)
+            return
+            
+        best_move_so_far = random.choice(actions)
         depth = 1
         
         while self.timeRemaining():
@@ -59,7 +64,10 @@ class Player(BasePlayer):
                 best_value_for_depth = float('-inf')
                 best_move_for_depth = None
 
-                for action in board.actions():
+                for action in actions:
+                    if not self.timeRemaining():
+                        raise TimeoutError
+                        
                     expected_value = 0
                     possible_results = board.possibleResults(action)
                     
@@ -75,14 +83,15 @@ class Player(BasePlayer):
                         best_value_for_depth = expected_value
                         best_move_for_depth = action
                 
+                # If a full depth level was completed, update the best move.
                 if best_move_for_depth is not None:
                     best_move_so_far = best_move_for_depth
-            
+                
             except TimeoutError:
                 break
             
             depth += 1
-        
+            
         self.setMove(best_move_so_far)
 
     def expectimax_value(self, state, depth):
