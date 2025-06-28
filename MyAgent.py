@@ -14,7 +14,6 @@ class Player(BasePlayer):
         max_tile_weight = 0.5
 
         empty_cells = sum(1 for tile in board._board if tile == 0)
-
         max_tile_power = max(board._board)
 
         smoothness = 0
@@ -54,45 +53,43 @@ class Player(BasePlayer):
         actions = board.actions()
         if not actions:
             self.setMove(None)
-            return
             
-        best_move_so_far = random.choice(actions)
+        best_move_to_set = random.choice(actions) 
+        best_value_found = float('-inf')
+        
         depth = 1
         
         while self.timeRemaining():
             try:
-                best_value_for_depth = float('-inf')
-                best_move_for_depth = None
+                current_depth_best_value = float('-inf')
+                current_depth_best_move = None
 
                 for action in actions:
                     if not self.timeRemaining():
                         raise TimeoutError
                         
-                    expected_value = 0
-                    possible_results = board.possibleResults(action)
-                    
-                    if not possible_results:
+                    afterstate = board.move(action)
+                    if afterstate is None:
                         continue
                         
-                    for next_state, probability in possible_results:
-                        v = self.expectimax_value(next_state, depth - 1)
-                        if v is None: raise TimeoutError
-                        expected_value += probability * v
+                    v = self.expectimax_value(afterstate, depth - 1)
+                    if v is None: raise TimeoutError
                     
-                    if expected_value > best_value_for_depth:
-                        best_value_for_depth = expected_value
-                        best_move_for_depth = action
+                    if v > current_depth_best_value:
+                        current_depth_best_value = v
+                        current_depth_best_move = action
                 
-                # If a full depth level was completed, update the best move.
-                if best_move_for_depth is not None:
-                    best_move_so_far = best_move_for_depth
-                
+                if current_depth_best_move is not None:
+                    if current_depth_best_value > best_value_found:
+                        best_value_found = current_depth_best_value
+                        best_move_to_set = current_depth_best_move
+            
             except TimeoutError:
                 break
             
             depth += 1
             
-        self.setMove(best_move_so_far)
+        self.setMove(best_move_to_set)
 
     def expectimax_value(self, state, depth):
         if not self.timeRemaining():
@@ -109,12 +106,17 @@ class Player(BasePlayer):
 
         if state.gameOver():
             return self.heuristic(state)
+        
+        if depth == 0:
+            return self.heuristic(state)
 
         best_value = float('-inf')
         for action in state.actions():
             afterstate = state.move(action)
+            if afterstate is None:
+                continue
             
-            chance_value = self.chance_value(afterstate, depth)
+            chance_value = self.chance_value(afterstate, depth - 1)
             if chance_value is None: return None
             
             best_value = max(best_value, chance_value)
@@ -129,21 +131,30 @@ class Player(BasePlayer):
             return self.heuristic(state)
 
         expected_value = 0
-        possible_tiles = state.possibleTiles()
         
-        if not possible_tiles:
+        empty_indices = [i for i, tile in enumerate(state._board) if tile == 0]
+        
+        if not empty_indices:
             return self.heuristic(state)
 
-        for position, value in possible_tiles:
-            next_state_board = list(state._board)
-            next_state_board[position] = value
-            next_state = Game2048(next_state_board, state.getScore())
+        for position in empty_indices:
+            next_state_board_2 = list(state._board)
+            next_state_board_2[position] = 1
+            next_state_2 = Game2048(next_state_board_2, state.getScore())
+            prob_2_tile = 0.75 / len(empty_indices) 
             
-            probability = 0.9 if value == 1 else 0.1
+            v_2 = self.max_value(next_state_2, depth)
+            if v_2 is None: return None
+            expected_value += prob_2_tile * v_2
             
-            v = self.max_value(next_state, depth)
-            if v is None: return None
-            expected_value += probability * v
+            next_state_board_4 = list(state._board)
+            next_state_board_4[position] = 2
+            next_state_4 = Game2048(next_state_board_4, state.getScore())
+            prob_4_tile = 0.25 / len(empty_indices)
+            
+            v_4 = self.max_value(next_state_4, depth)
+            if v_4 is None: return None
+            expected_value += prob_4_tile * v_4
             
         return expected_value
 
