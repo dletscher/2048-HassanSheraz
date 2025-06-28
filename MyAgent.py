@@ -8,12 +8,14 @@ class Player(BasePlayer):
         BasePlayer.__init__(self, timeLimit)
         self.max_search_depth = 5 
         self.corner_weights = [1024, 512, 256, 128, 64, 32, 16, 8, 4, 2, 1, 0.5, 0.25, 0.125, 0.0625, 0.0]
+        self.max_empty_tiles_to_check = 4 # Limit the number of empty tiles to check
 
     def heuristic(self, board):
-        empty_cells_weight = 2.0
+        empty_cells_weight = 2.7
         monotonicity_weight = 1.0
-        smoothness_weight = 0.5
-        max_tile_weight = 0.5
+        smoothness_weight = 0.1
+        max_tile_weight = 10.0
+        corner_weight = 1000.0
 
         empty_cells = sum(1 for tile in board._board if tile == 0)
         max_tile_power = max(board._board)
@@ -21,34 +23,38 @@ class Player(BasePlayer):
         smoothness = 0
         for r in range(4):
             for c in range(4):
-                if board.getTile(r, c) != 0:
-                    current_tile = board.getTile(r, c)
-                    if c < 3 and board.getTile(r, c + 1) != 0:
-                        smoothness -= abs(current_tile - board.getTile(r, c + 1))
-                    if r < 3 and board.getTile(r + 1, c) != 0:
-                        smoothness -= abs(current_tile - board.getTile(r + 1, c))
+                current_tile = board.getTile(r, c)
+                if current_tile == 0:
+                    continue
+                if c < 3 and board.getTile(r, c + 1) != 0:
+                    smoothness -= abs(current_tile - board.getTile(r, c + 1))
+                if r < 3 and board.getTile(r + 1, c) != 0:
+                    smoothness -= abs(current_tile - board.getTile(r + 1, c))
 
         monotonicity = 0
         for r in range(4):
-            row = [board.getTile(r, c) for c in range(4) if board.getTile(r, c) != 0]
-            if len(row) > 1:
-                is_increasing_left_to_right = all(row[i] <= row[i + 1] for i in range(len(row) - 1))
-                is_decreasing_left_to_right = all(row[i] >= row[i + 1] for i in range(len(row) - 1))
-                if is_increasing_left_to_right or is_decreasing_left_to_right:
-                    monotonicity += sum(row)
-        
+            increasing_row = 0
+            decreasing_row = 0
+            for c in range(3):
+                if board.getTile(r, c) > board.getTile(r, c + 1):
+                    decreasing_row += board.getTile(r, c) - board.getTile(r, c + 1)
+                else:
+                    increasing_row += board.getTile(r, c + 1) - board.getTile(r, c)
+            monotonicity += min(increasing_row, decreasing_row)
+
         for c in range(4):
-            col = [board.getTile(r, c) for r in range(4) if board.getTile(r, c) != 0]
-            if len(col) > 1:
-                is_increasing_top_to_bottom = all(col[i] <= col[i + 1] for i in range(len(col) - 1))
-                is_decreasing_top_to_bottom = all(col[i] >= col[i + 1] for i in range(len(col) - 1))
-                if is_increasing_top_to_bottom or is_decreasing_top_to_bottom:
-                    monotonicity += sum(col)
+            increasing_col = 0
+            decreasing_col = 0
+            for r in range(3):
+                if board.getTile(r, c) > board.getTile(r + 1, c):
+                    decreasing_col += board.getTile(r, c) - board.getTile(r + 1, c)
+                else:
+                    increasing_col += board.getTile(r + 1, c) - board.getTile(r, c)
+            monotonicity += min(increasing_col, decreasing_col)
 
         corner_score = 0
         if board.getTile(0, 0) == max_tile_power:
-            for i in range(16):
-                corner_score += self.corner_weights[i] * board._board[i]
+            corner_score = corner_weight * max_tile_power
         
         return (empty_cells * empty_cells_weight + 
                 monotonicity * monotonicity_weight + 
@@ -142,8 +148,10 @@ class Player(BasePlayer):
         if not empty_indices:
             return self.heuristic(state)
 
-        for position in empty_indices:
-            # Case 1: Opponent places a 2-tile (value 1)
+        # To optimize, evaluate only the top N most promising empty tiles
+        positions_to_check = empty_indices[:self.max_empty_tiles_to_check]
+        
+        for position in positions_to_check:
             next_state_board_2 = list(state._board)
             next_state_board_2[position] = 1
             next_state_2 = Game2048(next_state_board_2, state.getScore())
@@ -154,9 +162,8 @@ class Player(BasePlayer):
             
             beta = min(beta, worst_value)
             if alpha >= beta:
-                return worst_value # Prune remaining branches
+                return worst_value
             
-            # Case 2: Opponent places a 4-tile (value 2)
             next_state_board_4 = list(state._board)
             next_state_board_4[position] = 2
             next_state_4 = Game2048(next_state_board_4, state.getScore())
@@ -167,7 +174,7 @@ class Player(BasePlayer):
             
             beta = min(beta, worst_value)
             if alpha >= beta:
-                break # Prune remaining branches
+                break
             
         return worst_value
 
