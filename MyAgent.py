@@ -6,6 +6,7 @@ from Game2048 import *
 class Player(BasePlayer):
     def __init__(self, timeLimit):
         BasePlayer.__init__(self, timeLimit)
+        self.max_search_depth = 2
 
     def heuristic(self, board):
         empty_cells_weight = 2.0
@@ -53,43 +54,28 @@ class Player(BasePlayer):
         actions = board.actions()
         if not actions:
             self.setMove(None)
+            return
             
-        best_move_to_set = random.choice(actions) 
-        best_value_found = float('-inf')
+        best_move_so_far = random.choice(actions)
+        best_value_for_depth = float('-inf')
         
-        depth = 1
-        
-        while self.timeRemaining():
-            try:
-                current_depth_best_value = float('-inf')
-                current_depth_best_move = None
-
-                for action in actions:
-                    if not self.timeRemaining():
-                        raise TimeoutError
-                        
-                    afterstate = board.move(action)
-                    if afterstate is None:
-                        continue
-                        
-                    v = self.expectimax_value(afterstate, depth - 1)
-                    if v is None: raise TimeoutError
+        try:
+            for action in actions:
+                afterstate = board.move(action)
+                if afterstate is None:
+                    continue
                     
-                    if v > current_depth_best_value:
-                        current_depth_best_value = v
-                        current_depth_best_move = action
+                v = self.expectimax_value(afterstate, self.max_search_depth - 1)
+                if v is None: raise TimeoutError
                 
-                if current_depth_best_move is not None:
-                    if current_depth_best_value > best_value_found:
-                        best_value_found = current_depth_best_value
-                        best_move_to_set = current_depth_best_move
+                if v > best_value_for_depth:
+                    best_value_for_depth = v
+                    best_move_so_far = action
+        
+        except TimeoutError:
+            pass
             
-            except TimeoutError:
-                break
-            
-            depth += 1
-            
-        self.setMove(best_move_to_set)
+        self.setMove(best_move_so_far)
 
     def expectimax_value(self, state, depth):
         if not self.timeRemaining():
