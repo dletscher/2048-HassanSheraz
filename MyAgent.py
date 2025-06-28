@@ -6,15 +6,15 @@ from Game2048 import *
 class Player(BasePlayer):
     def __init__(self, timeLimit):
         BasePlayer.__init__(self, timeLimit)
-        self.max_search_depth = 5 
+        self.max_search_depth = 6
         self.max_empty_tiles_to_check = 4 
 
     def heuristic(self, board):
-        empty_cells_weight = 10.0
+        empty_cells_weight = 2.0
         monotonicity_weight = 1.0
-        smoothness_weight = 0.1
-        max_tile_weight = 100.0
-        corner_weight = 20000.0
+        smoothness_weight = 0.5
+        max_tile_weight = 10.0
+        corner_weight = 5000.0
 
         empty_cells = sum(1 for tile in board._board if tile == 0)
         max_tile_power = max(board._board)
@@ -32,34 +32,19 @@ class Player(BasePlayer):
 
         monotonicity = 0
         for r in range(4):
-            increasing_row = 0
-            decreasing_row = 0
             for c in range(3):
-                if board.getTile(r, c) > board.getTile(r, c + 1):
-                    decreasing_row += board.getTile(r, c) - board.getTile(r, c + 1)
-                else:
-                    increasing_row += board.getTile(r, c + 1) - board.getTile(r, c)
-            monotonicity += min(increasing_row, decreasing_row)
-
+                if board.getTile(r,c) > board.getTile(r,c+1):
+                    monotonicity += 1
         for c in range(4):
-            increasing_col = 0
-            decreasing_col = 0
             for r in range(3):
-                if board.getTile(r, c) > board.getTile(r + 1, c):
-                    decreasing_col += board.getTile(r, c) - board.getTile(r + 1, c)
-                else:
-                    increasing_col += board.getTile(r + 1, c) - board.getTile(r, c)
-            monotonicity += min(increasing_col, decreasing_col)
-
-        corner_score = 0
-        if board.getTile(0, 0) == max_tile_power:
-            corner_score = corner_weight * max_tile_power
+                if board.getTile(r,c) > board.getTile(r+1,c):
+                    monotonicity += 1
         
         return (empty_cells * empty_cells_weight + 
                 monotonicity * monotonicity_weight + 
                 smoothness * smoothness_weight + 
                 max_tile_power * max_tile_weight + 
-                corner_score)
+                corner_weight if board.getTile(0, 0) == max_tile_power else 0)
 
     def findMove(self, board):
         actions = board.actions()
