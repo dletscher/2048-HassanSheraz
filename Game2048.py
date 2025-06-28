@@ -20,12 +20,23 @@ class Game2048:
 			self._board.append(random.choice([0]*16 + [1]*4 + [2]*2 + [3]))
 
 	def actions(self):
-		return ''.join([ a for a in 'UDLR' if self.move(a)._board != self._board ])
+		valid_actions = []
+		for a in 'UDLR':
+			g_after_move = self.move(a)
+			if g_after_move is not None and g_after_move._board != self._board:
+				valid_actions.append(a)
+		return ''.join(valid_actions)
 
 	def result(self, a):
 		s = self._score
 		g = self.move(a)
+		if g is None:
+			return Game2048(copy.copy(self._board), self._score), 0
+
 		zeros = [ i for i in range(16) if g._board[i] == 0 ]
+		if not zeros:
+			return g, g._score - s
+
 		i = random.choice(zeros)
 		if random.randint(0,3) == 3:
 			g._board[i] = 2
@@ -42,18 +53,32 @@ class Game2048:
 	def possibleResults(self, a):
 		s = self._score
 		possible = []
-		g = self.move(a)
-		zeros = [ i for i in range(16) if g._board[i] == 0 ]
+		g_after_player_move = self.move(a)
+		if g_after_player_move is None:
+			return [(Game2048(copy.copy(self._board), self._score), 0)]
+
+		zeros = [ i for i in range(16) if g_after_player_move._board[i] == 0 ]
+		
+		if not zeros:
+			return [(g_after_player_move, 1.0)]
+
 		for i in zeros:
-			g = self.move(a)
-			for t in [1,2]:
-				g._board[i] = t
-				if t == 1:
-					possible.append((g,.75/len(zeros)))
-				else:
-					possible.append((g,.25/len(zeros)))
+			board_with_2 = copy.copy(g_after_player_move._board)
+			board_with_2[i] = 1
+			state_with_2 = Game2048(board_with_2, g_after_player_move._score)
+			possible.append((state_with_2, 0.75 / len(zeros)))
+			# 4-tile (value 2)
+			board_with_4 = copy.copy(g_after_player_move._board)
+			board_with_4[i] = 2
+			state_with_4 = Game2048(board_with_4, g_after_player_move._score)
+			possible.append((state_with_4, 0.25 / len(zeros)))
 			
 		return possible
+
+	def addTile(self, t, v):
+		b = copy.copy(self._board)
+		b[t] = v
+		return Game2048(b, self._score)
 
 	def move(self, action):
 		board = []
@@ -73,6 +98,8 @@ class Game2048:
 						j -= 1
 				r = [0] * (4-len(r)) + r					
 				board.extend(r)
+			if board == self._board:
+				return None
 			return Game2048(board, s)
 		elif action == 'L':
 			for i in range(0,16,4):
@@ -89,14 +116,22 @@ class Game2048:
 						j += 1
 				r = r + [0] * (4-len(r))					
 				board.extend(r)
+			if board == self._board:
+				return None
 			return Game2048(board, s)
 		elif action == 'D':
-			return self._flip().move('R')._flip()
+			temp_g = self.rotate(1).move('R')
+			if temp_g is None:
+				return None
+			return temp_g.rotate(3)
 		elif action == 'U':
-			f = self._flip()
-			return self._flip().move('L')._flip()
+			temp_g = self.rotate(3).move('L')
+			if temp_g is None:
+				return None
+			return temp_g.rotate(1)
 		else:
 			print('ERROR move =', action)
+			return None
 				
 	def _flip(self):
 		r = []
@@ -152,8 +187,7 @@ class BasePlayer:
 		return False
 
 	def setMove(self, move):
-		if self.timeRemaining():
-			self._move = move
+		self._move = move
 
 	def getMove(self):
 		return self._move
