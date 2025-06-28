@@ -39,7 +39,7 @@ class Player(BasePlayer):
                     decreasing_row += board.getTile(r, c)
                 else:
                     increasing_row += board.getTile(r, c + 1)
-            monotonicity += max(increasing_row, decreasing_row)
+            monotonicity += min(increasing_row, decreasing_row)
 
         for c in range(4):
             increasing_col = 0
@@ -49,7 +49,7 @@ class Player(BasePlayer):
                     decreasing_col += board.getTile(r, c)
                 else:
                     increasing_col += board.getTile(r + 1, c)
-            monotonicity += max(increasing_col, decreasing_col)
+            monotonicity += min(increasing_col, decreasing_col)
 
         corner_score = 0
         if board.getTile(0, 0) == max_tile_power:
@@ -60,14 +60,26 @@ class Player(BasePlayer):
                 smoothness * smoothness_weight + 
                 max_tile_power * max_tile_weight + 
                 corner_score)
+                
+    def moveOrder(self, board):
+        move_values = []
+        for action in board.actions():
+            afterstate = board.move(action)
+            if afterstate is not None:
+                h_value = self.heuristic(afterstate)
+                move_values.append((h_value, action))
+        
+        move_values.sort(key=lambda x: x[0], reverse=True)
+        
+        return [action for value, action in move_values]
 
     def findMove(self, board):
-        actions = board.actions()
+        actions = self.moveOrder(board)
         if not actions:
             self.setMove(None)
             return
             
-        best_move_to_set = random.choice(actions)
+        best_move_to_set = actions[0]
         best_value_found = float('-inf')
         
         depth = 1
@@ -76,10 +88,6 @@ class Player(BasePlayer):
             try:
                 current_depth_best_value = float('-inf')
                 current_depth_best_move = None
-                
-                # Expectimax does not use alpha-beta pruning in the same way as Minimax.
-                # The alpha and beta values are used in the Max and Chance nodes, but the logic
-                # for the Chance node is different.
                 alpha = float('-inf')
                 beta = float('inf')
 
@@ -91,13 +99,16 @@ class Player(BasePlayer):
                     if afterstate is None:
                         continue
                         
-                    # Call the chance node from the player's move
-                    v = self.chance_value(afterstate, depth - 1)
+                    v = self.min_value(afterstate, depth - 1, alpha, beta)
                     if v is None: raise TimeoutError
                     
                     if v > current_depth_best_value:
                         current_depth_best_value = v
                         current_depth_best_move = action
+                    
+                    alpha = max(alpha, v)
+                    if alpha >= beta:
+                        break
                 
                 if current_depth_best_move is not None:
                     if current_depth_best_value > best_value_found:
@@ -111,7 +122,7 @@ class Player(BasePlayer):
             
         self.setMove(best_move_to_set)
 
-    def max_value(self, state, depth):
+    def max_value(self, state, depth, alpha, beta):
         if not self.timeRemaining():
             return None
 
@@ -124,21 +135,25 @@ class Player(BasePlayer):
             if afterstate is None:
                 continue
             
-            chance_score = self.chance_value(afterstate, depth - 1)
-            if chance_score is None: return None
+            min_score = self.min_value(afterstate, depth - 1, alpha, beta)
+            if min_score is None: return None
             
-            best_value = max(best_value, chance_score)
+            best_value = max(best_value, min_score)
+            
+            alpha = max(alpha, best_value)
+            if alpha >= beta:
+                break
                 
         return best_value
 
-    def chance_value(self, state, depth):
+    def min_value(self, state, depth, alpha, beta):
         if not self.timeRemaining():
             return None
         
         if state.gameOver() or depth == 0:
             return self.heuristic(state)
 
-        expected_value = 0
+        worst_value = float('inf')
         empty_indices = [i for i, tile in enumerate(state._board) if tile == 0]
         
         if not empty_indices:
@@ -151,19 +166,27 @@ class Player(BasePlayer):
             next_state_board_2[position] = 1
             next_state_2 = Game2048(next_state_board_2, state.getScore())
             
-            v_2 = self.max_value(next_state_2, depth - 1)
+            v_2 = self.max_value(next_state_2, depth - 1, alpha, beta)
             if v_2 is None: return None
-            expected_value += 0.75 * v_2
+            worst_value = min(worst_value, v_2)
+            
+            beta = min(beta, worst_value)
+            if alpha >= beta:
+                return worst_value
             
             next_state_board_4 = list(state._board)
             next_state_board_4[position] = 2
             next_state_4 = Game2048(next_state_board_4, state.getScore())
             
-            v_4 = self.max_value(next_state_4, depth - 1)
+            v_4 = self.max_value(next_state_4, depth - 1, alpha, beta)
             if v_4 is None: return None
-            expected_value += 0.25 * v_4
+            worst_value = min(worst_value, v_4)
             
-        return expected_value
+            beta = min(beta, worst_value)
+            if alpha >= beta:
+                break
+            
+        return worst_value
 
     def loadData(self, filename):
         pass
