@@ -6,7 +6,7 @@ from Game2048 import *
 class Player(BasePlayer):
     def __init__(self, timeLimit):
         BasePlayer.__init__(self, timeLimit)
-        self.max_search_depth = 6
+        self.max_search_depth = 5 
         self.max_empty_tiles_to_check = 4 
 
     def heuristic(self, board):
@@ -60,26 +60,14 @@ class Player(BasePlayer):
                 smoothness * smoothness_weight + 
                 max_tile_power * max_tile_weight + 
                 corner_score)
-                
-    def moveOrder(self, board):
-        move_values = []
-        for action in board.actions():
-            afterstate = board.move(action)
-            if afterstate is not None:
-                h_value = self.heuristic(afterstate)
-                move_values.append((h_value, action))
-        
-        move_values.sort(key=lambda x: x[0], reverse=True)
-        
-        return [action for value, action in move_values]
 
     def findMove(self, board):
-        actions = self.moveOrder(board)
+        actions = board.actions()
         if not actions:
             self.setMove(None)
             return
             
-        best_move_to_set = actions[0]
+        best_move_to_set = random.choice(actions)
         best_value_found = float('-inf')
         
         depth = 1
