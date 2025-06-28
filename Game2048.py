@@ -22,18 +22,16 @@ class Game2048:
 	def actions(self):
 		valid_actions = []
 		for a in 'UDLR':
-			g_after_move = self.move(a)
-			if g_after_move is not None and g_after_move._board != self._board:
+			temp_board = self.move(a)
+			if temp_board._board != self._board:
 				valid_actions.append(a)
 		return ''.join(valid_actions)
 
 	def result(self, a):
 		s = self._score
 		g = self.move(a)
-		if g is None:
-			return Game2048(copy.copy(self._board), self._score), 0
-
 		zeros = [ i for i in range(16) if g._board[i] == 0 ]
+		
 		if not zeros:
 			return g, g._score - s
 
@@ -54,9 +52,7 @@ class Game2048:
 		s = self._score
 		possible = []
 		g_after_player_move = self.move(a)
-		if g_after_player_move is None:
-			return [(Game2048(copy.copy(self._board), self._score), 0)]
-
+		
 		zeros = [ i for i in range(16) if g_after_player_move._board[i] == 0 ]
 		
 		if not zeros:
@@ -67,7 +63,7 @@ class Game2048:
 			board_with_2[i] = 1
 			state_with_2 = Game2048(board_with_2, g_after_player_move._score)
 			possible.append((state_with_2, 0.75 / len(zeros)))
-			# 4-tile (value 2)
+			
 			board_with_4 = copy.copy(g_after_player_move._board)
 			board_with_4[i] = 2
 			state_with_4 = Game2048(board_with_4, g_after_player_move._score)
@@ -83,6 +79,7 @@ class Game2048:
 	def move(self, action):
 		board = []
 		s = self._score
+		
 		if action == 'R':
 			for i in range(0,16,4):
 				compressed = [t for t in self._board[i:i+4] if t != 0]
@@ -98,9 +95,6 @@ class Game2048:
 						j -= 1
 				r = [0] * (4-len(r)) + r					
 				board.extend(r)
-			if board == self._board:
-				return None
-			return Game2048(board, s)
 		elif action == 'L':
 			for i in range(0,16,4):
 				compressed = [t for t in self._board[i:i+4] if t != 0]
@@ -116,22 +110,18 @@ class Game2048:
 						j += 1
 				r = r + [0] * (4-len(r))					
 				board.extend(r)
-			if board == self._board:
-				return None
-			return Game2048(board, s)
+		
 		elif action == 'D':
-			temp_g = self.rotate(1).move('R')
-			if temp_g is None:
-				return None
-			return temp_g.rotate(3)
+			return self.rotate(1).move('R').rotate(3)
 		elif action == 'U':
-			temp_g = self.rotate(3).move('L')
-			if temp_g is None:
-				return None
-			return temp_g.rotate(1)
+			return self.rotate(3).move('L').rotate(1)
 		else:
 			print('ERROR move =', action)
-			return None
+			return self
+
+		if board == self._board:
+			return Game2048(copy.copy(self._board), self._score)
+		return Game2048(board, s)
 				
 	def _flip(self):
 		r = []
