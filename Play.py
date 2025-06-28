@@ -1,23 +1,59 @@
-import argparse
-from Game2048 import Game2048
-from MyAgent import Player
+from Game2048 import *
 
-def play():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('agent')
-    parser.add_argument('time_limit', type=float)
-    args = parser.parse_args()
+import sys, importlib, argparse, time
 
-    state = Game2048()
-    agent = Player(args.time_limit)
+def play(agent, graphicsSize, delay):
+	state = Game2048()
+	state.randomize()
+	if g is not None:
+		g.draw(state)
 
-    while not state.gameOver():
-        move = agent.findMove(state)
-        if move is None:
-            break
-        state, _ = state.result(move)
+	while not state.gameOver():
+		print(state)
 
-    print("Game Over! Score:", state.getScore())
+		agent._startTime = time.time()
+		agent.findMove(state)
+		move = agent.getMove()
+		
+		print()
+		print(f'Players moves {move}\n')
+		print()
+		
+		state, reward = state.result(move)
+
+		if g is not None:
+			g.draw(state)
+			
+		if delay:
+			time.sleep(delay)
+			
+	print(state)
 
 if __name__ == '__main__':
-    play()
+	parser = argparse.ArgumentParser(description ='Play Othello')
+	parser.add_argument('agent', type=str)
+	parser.add_argument('time_limit', type=float, help="time to make a move")
+	parser.add_argument('-g', type=int, help="size of graphics window")
+	parser.add_argument('-t', type=float, help="time delay")
+	parser.add_argument('-d', type=str, help="data file")
+	args = parser.parse_args()
+
+	try:
+		agentModule = importlib.import_module(args.agent.split('.')[0])
+	except:
+		print('Invalid agent module')
+		sys.exit()
+
+	timeLimit = args.time_limit
+	agent = agentModule.Player(timeLimit)
+
+	if args.g:
+		from Graphics import *
+		g = Graphics(args.g)
+	else:
+		g = None
+		
+	if args.d:
+		agent.loadData(args.d)
+
+	play(agent, g, args.t)
