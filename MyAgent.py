@@ -6,10 +6,15 @@ from Game2048 import *
 class Player(BasePlayer):
     def __init__(self, timeLimit):
         BasePlayer.__init__(self, timeLimit)
-        self._cache = {}
-        self.max_search_depth = 4
+        self.max_search_depth = 5 
+        self.corner_weights = [1024, 512, 256, 128, 64, 32, 16, 8, 4, 2, 1, 0.5, 0.25, 0.125, 0.0625, 0.0]
 
     def heuristic(self, board):
+        empty_cells_weight = 2.0
+        monotonicity_weight = 1.0
+        smoothness_weight = 0.5
+        max_tile_weight = 0.5
+
         empty_cells = sum(1 for tile in board._board if tile == 0)
         max_tile_power = max(board._board)
 
@@ -24,14 +29,32 @@ class Player(BasePlayer):
                         smoothness -= abs(current_tile - board.getTile(r + 1, c))
 
         monotonicity = 0
-        for i in range(16):
-            r, c = i // 4, i % 4
-            if r < 3:
-                monotonicity += board.getTile(r, c) - board.getTile(r + 1, c)
-            if c < 3:
-                monotonicity += board.getTile(r, c) - board.getTile(r, c + 1)
+        for r in range(4):
+            row = [board.getTile(r, c) for c in range(4) if board.getTile(r, c) != 0]
+            if len(row) > 1:
+                is_increasing_left_to_right = all(row[i] <= row[i + 1] for i in range(len(row) - 1))
+                is_decreasing_left_to_right = all(row[i] >= row[i + 1] for i in range(len(row) - 1))
+                if is_increasing_left_to_right or is_decreasing_left_to_right:
+                    monotonicity += sum(row)
         
-        return empty_cells * 2 + monotonicity + smoothness + max_tile_power * 10
+        for c in range(4):
+            col = [board.getTile(r, c) for r in range(4) if board.getTile(r, c) != 0]
+            if len(col) > 1:
+                is_increasing_top_to_bottom = all(col[i] <= col[i + 1] for i in range(len(col) - 1))
+                is_decreasing_top_to_bottom = all(col[i] >= col[i + 1] for i in range(len(col) - 1))
+                if is_increasing_top_to_bottom or is_decreasing_top_to_bottom:
+                    monotonicity += sum(col)
+
+        corner_score = 0
+        if board.getTile(0, 0) == max_tile_power:
+            for i in range(16):
+                corner_score += self.corner_weights[i] * board._board[i]
+        
+        return (empty_cells * empty_cells_weight + 
+                monotonicity * monotonicity_weight + 
+                smoothness * smoothness_weight + 
+                max_tile_power * max_tile_weight + 
+                corner_score)
 
     def findMove(self, board):
         actions = board.actions()
@@ -42,7 +65,6 @@ class Player(BasePlayer):
         best_move_to_set = random.choice(actions)
         best_value_found = float('-inf')
         
-        self._cache = {} 
         depth = 1
         
         while self.timeRemaining() and depth <= self.max_search_depth:
@@ -60,7 +82,7 @@ class Player(BasePlayer):
                     if afterstate is None:
                         continue
                         
-                    v = self.chance_value(afterstate, depth - 1, alpha, beta)
+                    v = self.min_value(afterstate, depth - 1, alpha, beta)
                     if v is None: raise TimeoutError
                     
                     if v > current_depth_best_value:
@@ -83,30 +105,11 @@ class Player(BasePlayer):
             
         self.setMove(best_move_to_set)
 
-    def expectimax_value(self, state, depth, alpha, beta):
-        state_tuple = tuple(state._board)
-        cache_key = (state_tuple, depth, alpha, beta)
-        if cache_key in self._cache:
-            return self._cache[cache_key]
-
-        if not self.timeRemaining():
-            return None
-            
-        if state.gameOver() or depth == 0:
-            return self.heuristic(state)
-
-        value = self.max_value(state, depth, alpha, beta)
-        self._cache[cache_key] = value
-        return value
-
     def max_value(self, state, depth, alpha, beta):
         if not self.timeRemaining():
             return None
 
-        if state.gameOver():
-            return self.heuristic(state)
-        
-        if depth == 0:
+        if state.gameOver() or depth == 0:
             return self.heuristic(state)
 
         best_value = float('-inf')
@@ -115,10 +118,10 @@ class Player(BasePlayer):
             if afterstate is None:
                 continue
             
-            chance_value = self.chance_value(afterstate, depth - 1, alpha, beta)
-            if chance_value is None: return None
+            min_score = self.min_value(afterstate, depth - 1, alpha, beta)
+            if min_score is None: return None
             
-            best_value = max(best_value, chance_value)
+            best_value = max(best_value, min_score)
             
             alpha = max(alpha, best_value)
             if alpha >= beta:
@@ -126,40 +129,47 @@ class Player(BasePlayer):
                 
         return best_value
 
-    def chance_value(self, state, depth, alpha, beta):
+    def min_value(self, state, depth, alpha, beta):
         if not self.timeRemaining():
             return None
         
-        if state.gameOver():
+        if state.gameOver() or depth == 0:
             return self.heuristic(state)
 
-        expected_value = 0
+        worst_value = float('inf')
         empty_indices = [i for i, tile in enumerate(state._board) if tile == 0]
         
         if not empty_indices:
             return self.heuristic(state)
 
         for position in empty_indices:
-            
+            # Case 1: Opponent places a 2-tile (value 1)
             next_state_board_2 = list(state._board)
             next_state_board_2[position] = 1
             next_state_2 = Game2048(next_state_board_2, state.getScore())
-            prob_2_tile = 0.75 / len(empty_indices) 
             
-            v_2 = self.max_value(next_state_2, depth, alpha, beta)
+            v_2 = self.max_value(next_state_2, depth - 1, alpha, beta)
             if v_2 is None: return None
-            expected_value += prob_2_tile * v_2
+            worst_value = min(worst_value, v_2)
             
+            beta = min(beta, worst_value)
+            if alpha >= beta:
+                return worst_value # Prune remaining branches
+            
+            # Case 2: Opponent places a 4-tile (value 2)
             next_state_board_4 = list(state._board)
             next_state_board_4[position] = 2
             next_state_4 = Game2048(next_state_board_4, state.getScore())
-            prob_4_tile = 0.25 / len(empty_indices)
             
-            v_4 = self.max_value(next_state_4, depth, alpha, beta)
+            v_4 = self.max_value(next_state_4, depth - 1, alpha, beta)
             if v_4 is None: return None
-            expected_value += prob_4_tile * v_4
+            worst_value = min(worst_value, v_4)
             
-        return expected_value
+            beta = min(beta, worst_value)
+            if alpha >= beta:
+                break # Prune remaining branches
+            
+        return worst_value
 
     def loadData(self, filename):
         pass
