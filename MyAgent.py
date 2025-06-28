@@ -7,15 +7,14 @@ class Player(BasePlayer):
     def __init__(self, timeLimit):
         BasePlayer.__init__(self, timeLimit)
         self.max_search_depth = 5 
-        self.corner_weights = [1024, 512, 256, 128, 64, 32, 16, 8, 4, 2, 1, 0.5, 0.25, 0.125, 0.0625, 0.0]
-        self.max_empty_tiles_to_check = 4 # Limit the number of empty tiles to check
+        self.max_empty_tiles_to_check = 4 
 
     def heuristic(self, board):
-        empty_cells_weight = 2.7
+        empty_cells_weight = 10.0
         monotonicity_weight = 1.0
         smoothness_weight = 0.1
-        max_tile_weight = 10.0
-        corner_weight = 1000.0
+        max_tile_weight = 100.0
+        corner_weight = 20000.0
 
         empty_cells = sum(1 for tile in board._board if tile == 0)
         max_tile_power = max(board._board)
@@ -148,7 +147,6 @@ class Player(BasePlayer):
         if not empty_indices:
             return self.heuristic(state)
 
-        # To optimize, evaluate only the top N most promising empty tiles
         positions_to_check = empty_indices[:self.max_empty_tiles_to_check]
         
         for position in positions_to_check:
