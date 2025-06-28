@@ -10,11 +10,11 @@ class Player(BasePlayer):
         self.max_empty_tiles_to_check = 4 
 
     def heuristic(self, board):
-        empty_cells_weight = 2.7
-        monotonicity_weight = 1.0
+        empty_cells_weight = 5.0
+        monotonicity_weight = 20.0
         smoothness_weight = 0.1
-        max_tile_weight = 10.0
-        corner_weight = 1000.0
+        max_tile_weight = 100.0
+        corner_weight = 5000.0
 
         empty_cells = sum(1 for tile in board._board if tile == 0)
         max_tile_power = max(board._board)
@@ -67,7 +67,8 @@ class Player(BasePlayer):
             self.setMove(None)
             return
             
-        best_move_to_set = random.choice(actions)
+        # PROFESSOR'S FIX: Set a random legal move before searching
+        best_move_to_set = random.choice(actions) 
         best_value_found = float('-inf')
         
         depth = 1
