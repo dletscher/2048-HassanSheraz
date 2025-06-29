@@ -1,4 +1,92 @@
 import random
+import math
+
+class Player:
+    def __init__(self, timeLimit):
+        self.timeLimit = timeLimit
+        self.maxDepth = 4
+        self._move = None
+
+        self.weights = [
+            [4, 3, 2, 1],
+            [3, 2, 1, 0],
+            [2, 1, 0, -1],
+            [1, 0, -1, -2],
+        ]
+
+    def findMove(self, state):
+        legalMoves = []
+        for move in state.actions():
+            child, _ = state.result(move)
+            if child._board != state._board:
+                legalMoves.append(move)
+
+        if not legalMoves:
+            self._move = None
+            return
+
+        bestMove = None
+        bestScore = -math.inf
+
+        for move in legalMoves:
+            child, _ = state.result(move)
+            score = self.expectimax(child, self.maxDepth - 1, False)
+            if score > bestScore:
+                bestScore = score
+                bestMove = move
+
+        self._move = bestMove
+
+    def expectimax(self, state, depth, isMax):
+        if depth == 0 or state.gameOver():
+            return self.evaluate(state)
+
+        if isMax:
+            best = -math.inf
+            for move in state.actions():
+                child, _ = state.result(move)
+                if child._board != state._board:
+                    score = self.expectimax(child, depth - 1, False)
+                    best = max(best, score)
+            return best
+        else:
+            empty = [i for i, x in enumerate(state._board) if x == 0]
+            if not empty:
+                return self.evaluate(state)
+            total = 0
+            for pos in empty:
+                for val, prob in [(1, 0.9), (2, 0.1)]:
+                    newState = state.clone()
+                    r, c = divmod(pos, 4)
+                    newState.insertTile((r, c), val)
+                    total += prob * self.expectimax(newState, depth - 1, True)
+            return total / len(empty)
+
+    def evaluate(self, state):
+        empty = sum(1 for x in state._board if x == 0)
+        score = state._score + empty * 10
+
+        positional = 0
+        for r in range(4):
+            for c in range(4):
+                val = state.getTile(r, c)
+                if val > 0:
+                    positional += (2 ** val) * self.weights[r][c]
+
+        return score + positional
+
+    def getMove(self):
+        return self._move
+
+
+
+
+
+
+
+#BETTER VERSION BUT NOT GREAT
+'''
+import random
 
 class Player:
     def __init__(self, timeLimit):
@@ -148,7 +236,12 @@ class Player:
         return tuple(state.getTile(r, c) for r in range(4) for c in range(4))
 
 
-'''import random
+
+OLDER ONE/START
+
+
+
+import random
 import time
 
 class Player:
