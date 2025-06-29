@@ -4,7 +4,7 @@ import math
 class Player:
     def __init__(self, timeLimit):
         self.timeLimit = timeLimit
-        self.maxDepth = 4
+        self.maxDepth = 3
         self._move = None
 
         self.weights = [
