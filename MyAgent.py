@@ -1,6 +1,86 @@
 from Game2048 import *
 
 class Player(BasePlayer):
+    def __init__(self, timeLimit):
+        BasePlayer.__init__(self, timeLimit)
+
+    def findMove(self, state):
+        depth = 1
+        bestMove = None
+        while self.timeRemaining():
+            best = -float('inf')
+            for move in state.actions():
+                result = state.move(move)
+                if not self.timeRemaining():
+                    return
+                val = self.minPlayer(result, depth - 1)
+                if val is None:
+                    return
+                if val > best:
+                    best = val
+                    bestMove = move
+            self.setMove(bestMove)
+            depth += 1
+
+    def maxPlayer(self, state, depth):
+        if state.gameOver():
+            return state.getScore()
+        if depth == 0:
+            return self.heuristic(state)
+        best = -float('inf')
+        for move in state.actions():
+            if not self.timeRemaining():
+                return None
+            result = state.move(move)
+            val = self.minPlayer(result, depth - 1)
+            if val is None:
+                return None
+            best = max(best, val)
+        return best
+
+    def minPlayer(self, state, depth):
+        if state.gameOver():
+            return state.getScore()
+        if depth == 0:
+            return self.heuristic(state)
+        best = float('inf')
+        for t, v in state.possibleTiles():
+            if not self.timeRemaining():
+                return None
+            result = state.addTile(t, v)
+            val = self.maxPlayer(result, depth - 1)
+            if val is None:
+                return None
+            best = min(best, val)
+        return best
+
+    def heuristic(self, state):
+        grid = state._board
+        empty = sum(1 for t in grid if t == 0)
+        smoothness = 0
+        size = int(len(grid) ** 0.5)
+        for r in range(size):
+            for c in range(size - 1):
+                i = r * size + c
+                j = i + 1
+                if grid[i] != 0 and grid[j] != 0:
+                    smoothness -= abs(grid[i] - grid[j])
+        for r in range(size - 1):
+            for c in range(size):
+                i = r * size + c
+                j = i + size
+                if grid[i] != 0 and grid[j] != 0:
+                    smoothness -= abs(grid[i] - grid[j])
+        return state.getScore() + 200 * empty + 1 * smoothness
+
+
+
+
+
+'''
+from Game2048 import *
+
+class Player(BasePlayer):
 	def __init__(self, timeLimit):
 		BasePlayer.__init__(self, timeLimit)
 
@@ -93,3 +173,4 @@ class Player(BasePlayer):
 	def stats(self):
 		print(f'Average depth: {self._depthCount/self._count:.2f}')
 		print(f'Branching factor: {self._childCount / self._parentCount:.2f}')
+		'''
