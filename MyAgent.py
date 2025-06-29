@@ -1,4 +1,94 @@
 import random
+import math
+
+class Player:
+    def __init__(self, timeLimit):
+        self.timeLimit = timeLimit
+        self.maxDepth = 3
+        self._move = None
+
+        self.weights = [
+            [4, 3, 2, 1],
+            [3, 2, 1, 0],
+            [2, 1, 0, -1],
+            [1, 0, -1, -2],
+        ]
+
+    def findMove(self, state):
+        legalMoves = []
+        for move in state.actions():
+            child, _ = state.result(move)
+            if child._board != state._board:
+                legalMoves.append(move)
+
+        if not legalMoves:
+            self._move = None
+            return
+
+        bestMove = None
+        bestScore = -math.inf
+
+        for move in legalMoves:
+            child, _ = state.result(move)
+            score = self.minimax(child, self.maxDepth - 1, -math.inf, math.inf, False)
+            if score > bestScore:
+                bestScore = score
+                bestMove = move
+
+        self._move = bestMove
+
+    def minimax(self, state, depth, alpha, beta, isMax):
+        if depth == 0 or state.gameOver():
+            return self.evaluate(state)
+
+        if isMax:
+            maxEval = -math.inf
+            for move in state.actions():
+                child, _ = state.result(move)
+                if child._board != state._board:
+                    eval = self.minimax(child, depth - 1, alpha, beta, False)
+                    maxEval = max(maxEval, eval)
+                    alpha = max(alpha, eval)
+                    if beta <= alpha:
+                        break
+            return maxEval
+        else:
+            minEval = math.inf
+            empty = [i for i, x in enumerate(state._board) if x == 0]
+            if not empty:
+                return self.evaluate(state)
+            for pos in empty:
+                for val, prob in [(1, 0.9), (2, 0.1)]:
+                    newState = state.clone()
+                    r, c = divmod(pos, 4)
+                    newState.insertTile((r, c), val)
+                    eval = self.minimax(newState, depth - 1, alpha, beta, True)
+                    minEval = min(minEval, eval)
+                    beta = min(beta, eval)
+                    if beta <= alpha:
+                        break
+            return minEval
+
+    def evaluate(self, state):
+        empty = sum(1 for x in state._board if x == 0)
+        grid = [[state.getTile(r, c) for c in range(4)] for r in range(4)]
+
+        positional = 0
+        for r in range(4):
+            for c in range(4):
+                val = state.getTile(r, c)
+                if val > 0:
+                    positional += (2 ** val) * self.weights[r][c]
+
+        return state._score + positional + empty * 50
+
+    def getMove(self):
+        return self._move
+
+
+'''
+OLDER VERSION SOME BETTER IMPROVEMENTS
+import random
 
 class Player:
     def __init__(self, timeLimit):
@@ -149,7 +239,7 @@ class Player:
 
 
 
-'''
+
 Lates and best version but it crashing online while best score 50,000 offline
 
 import random
