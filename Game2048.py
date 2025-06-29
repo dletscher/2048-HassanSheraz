@@ -1,137 +1,4 @@
-import random
-import copy
 
-class Game2048:
-    def __init__(self):
-        self._board = [0] * 16
-        self._score = 0
-        self.spawnTile()
-        self.spawnTile()
-
-    def getTile(self, row, col):
-        return self._board[4 * row + col]
-
-    def spawnTile(self):
-        empty = [i for i, x in enumerate(self._board) if x == 0]
-        if not empty:
-            return False
-        index = random.choice(empty)
-        self._board[index] = 1 if random.random() < 0.9 else 2  # 1 = 2, 2 = 4
-        return True
-
-    def actions(self):
-        return ['U', 'D', 'L', 'R']
-
-    def result(self, move):
-        newGame = self.clone()
-        moved, points = newGame.move(move)
-        if moved:
-            newGame.spawnTile()
-        return newGame, points
-
-    def move(self, direction):
-        moved = False
-        points = 0
-        grid = [[self.getTile(r, c) for c in range(4)] for r in range(4)]
-
-        if direction == 'L':
-            for r in range(4):
-                row, p = self._merge(grid[r])
-                points += p
-                row += [0] * (4 - len(row))
-                grid[r] = row
-        elif direction == 'R':
-            for r in range(4):
-                row = grid[r][::-1]
-                row, p = self._merge(row)
-                points += p
-                row += [0] * (4 - len(row))
-                grid[r] = row[::-1]
-        elif direction == 'U':
-            for c in range(4):
-                col = [grid[r][c] for r in range(4)]
-                col, p = self._merge(col)
-                points += p
-                col += [0] * (4 - len(col))
-                for r in range(4):
-                    grid[r][c] = col[r]
-        elif direction == 'D':
-            for c in range(4):
-                col = [grid[r][c] for r in range(4)][::-1]
-                col, p = self._merge(col)
-                points += p
-                col += [0] * (4 - len(col))
-                for r in range(4):
-                    grid[r][c] = col[::-1][r]
-
-        for r in range(4):
-            for c in range(4):
-                if self.getTile(r, c) != grid[r][c]:
-                    moved = True
-                self._board[4 * r + c] = grid[r][c]
-
-        self._score += points
-        return moved, points
-
-    def _merge(self, tiles):
-        newTiles = []
-        score = 0
-        skip = False
-        for i in range(len(tiles)):
-            if tiles[i] == 0:
-                continue
-            if skip:
-                skip = False
-                continue
-            if i + 1 < len(tiles) and tiles[i] == tiles[i + 1]:
-                newTiles.append(tiles[i] + 1)
-                score += 2 ** (tiles[i] + 1)
-                skip = True
-            else:
-                newTiles.append(tiles[i])
-        return newTiles, score
-
-    def gameOver(self):
-        if any(x == 0 for x in self._board):
-            return False
-        for r in range(4):
-            for c in range(4):
-                t = self.getTile(r, c)
-                for dr, dc in [(1, 0), (0, 1)]:
-                    nr, nc = r + dr, c + dc
-                    if nr < 4 and nc < 4 and t == self.getTile(nr, nc):
-                        return False
-        return True
-
-    def clone(self):
-        return copy.deepcopy(self)
-
-    def insertTile(self, pos, value):
-        self._board[4 * pos[0] + pos[1]] = value
-
-    def randomize(self):
-        self._board = [0] * 16
-        self._score = 0
-        self.spawnTile()
-        self.spawnTile()
-
-    def __str__(self):
-        lines = []
-        for r in range(4):
-            row = []
-            for c in range(4):
-                val = self.getTile(r, c)
-                if val == 0:
-                    row.append('.')
-                else:
-                    row.append(str(2 ** val))
-            lines.append('\t'.join(row))
-        lines.append(f'Score: {self._score}')
-        return '\n'.join(lines)
-
-
-#INITIAL WORKING ONE 
-'''
 import time
 import random
 import copy
@@ -300,4 +167,143 @@ class BasePlayer:
 		
 	def loadData(self, filename):
 		pass
+
+
+
+
+
+'''
+
+Latest complicated work that works offline but crash online
+import random
+import copy
+
+class Game2048:
+    def __init__(self):
+        self._board = [0] * 16
+        self._score = 0
+        self.spawnTile()
+        self.spawnTile()
+
+    def getTile(self, row, col):
+        return self._board[4 * row + col]
+
+    def spawnTile(self):
+        empty = [i for i, x in enumerate(self._board) if x == 0]
+        if not empty:
+            return False
+        index = random.choice(empty)
+        self._board[index] = 1 if random.random() < 0.9 else 2  # 1 = 2, 2 = 4
+        return True
+
+    def actions(self):
+        return ['U', 'D', 'L', 'R']
+
+    def result(self, move):
+        newGame = self.clone()
+        moved, points = newGame.move(move)
+        if moved:
+            newGame.spawnTile()
+        return newGame, points
+
+    def move(self, direction):
+        moved = False
+        points = 0
+        grid = [[self.getTile(r, c) for c in range(4)] for r in range(4)]
+
+        if direction == 'L':
+            for r in range(4):
+                row, p = self._merge(grid[r])
+                points += p
+                row += [0] * (4 - len(row))
+                grid[r] = row
+        elif direction == 'R':
+            for r in range(4):
+                row = grid[r][::-1]
+                row, p = self._merge(row)
+                points += p
+                row += [0] * (4 - len(row))
+                grid[r] = row[::-1]
+        elif direction == 'U':
+            for c in range(4):
+                col = [grid[r][c] for r in range(4)]
+                col, p = self._merge(col)
+                points += p
+                col += [0] * (4 - len(col))
+                for r in range(4):
+                    grid[r][c] = col[r]
+        elif direction == 'D':
+            for c in range(4):
+                col = [grid[r][c] for r in range(4)][::-1]
+                col, p = self._merge(col)
+                points += p
+                col += [0] * (4 - len(col))
+                for r in range(4):
+                    grid[r][c] = col[::-1][r]
+
+        for r in range(4):
+            for c in range(4):
+                if self.getTile(r, c) != grid[r][c]:
+                    moved = True
+                self._board[4 * r + c] = grid[r][c]
+
+        self._score += points
+        return moved, points
+
+    def _merge(self, tiles):
+        newTiles = []
+        score = 0
+        skip = False
+        for i in range(len(tiles)):
+            if tiles[i] == 0:
+                continue
+            if skip:
+                skip = False
+                continue
+            if i + 1 < len(tiles) and tiles[i] == tiles[i + 1]:
+                newTiles.append(tiles[i] + 1)
+                score += 2 ** (tiles[i] + 1)
+                skip = True
+            else:
+                newTiles.append(tiles[i])
+        return newTiles, score
+
+    def gameOver(self):
+        if any(x == 0 for x in self._board):
+            return False
+        for r in range(4):
+            for c in range(4):
+                t = self.getTile(r, c)
+                for dr, dc in [(1, 0), (0, 1)]:
+                    nr, nc = r + dr, c + dc
+                    if nr < 4 and nc < 4 and t == self.getTile(nr, nc):
+                        return False
+        return True
+
+    def clone(self):
+        return copy.deepcopy(self)
+
+    def insertTile(self, pos, value):
+        self._board[4 * pos[0] + pos[1]] = value
+
+    def randomize(self):
+        self._board = [0] * 16
+        self._score = 0
+        self.spawnTile()
+        self.spawnTile()
+
+    def __str__(self):
+        lines = []
+        for r in range(4):
+            row = []
+            for c in range(4):
+                val = self.getTile(r, c)
+                if val == 0:
+                    row.append('.')
+                else:
+                    row.append(str(2 ** val))
+            lines.append('\t'.join(row))
+        lines.append(f'Score: {self._score}')
+        return '\n'.join(lines)
+
 '''
