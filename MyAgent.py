@@ -13,7 +13,7 @@ class Player(BasePlayer):
 	def findMove(self, state):
 		self._count += 1
 		actions = self.moveOrder(state)
-		depth = 1
+		depth = 2
 		while self.timeRemaining():
 			self._depthCount += 1
 			self._parentCount += 1
