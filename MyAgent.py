@@ -3,7 +3,7 @@ import time
 
 class Player:
     def __init__(self, timeLimit):
-        self.maxDepth = 3
+        self.maxDepth = 4
         self.timeLimit = timeLimit
         self._move = None
 
@@ -16,7 +16,15 @@ class Player:
         bestMove = None
         bestScore = -float('inf')
 
+        moveScores = []
         for move in legalMoves:
+            child, _ = state.result(move)
+            score = self.evaluate(child)
+            moveScores.append((score, move))
+
+        moveScores.sort(reverse=True)
+
+        for score, move in moveScores:
             child, _ = state.result(move)
             score = self.minValue(child, self.maxDepth - 1, -float('inf'), float('inf'))
             if score > bestScore:
@@ -40,7 +48,14 @@ class Player:
         if not legalMoves:
             return self.evaluate(state)
 
+        moveScores = []
         for move in legalMoves:
+            child, _ = state.result(move)
+            score = self.evaluate(child)
+            moveScores.append((score, move))
+        moveScores.sort(reverse=True)
+
+        for score, move in moveScores:
             child, _ = state.result(move)
             value = max(value, self.minValue(child, depth - 1, alpha, beta))
             if value >= beta:
@@ -79,5 +94,25 @@ class Player:
         for row in grid:
             for i in range(len(row) - 1):
                 smoothness -= abs(row[i] - row[i + 1])
+        for c in range(4):
+            for r in range(3):
+                smoothness -= abs(grid[r][c] - grid[r + 1][c])
 
-        return maxTile + empty * 100 + smoothness
+        monoRows = 0
+        for row in grid:
+            for i in range(len(row) - 1):
+                if row[i] >= row[i + 1]:
+                    monoRows += 1
+
+        corners = [grid[0][0], grid[0][3], grid[3][0], grid[3][3]]
+        cornerBonus = maxTile if maxTile in corners else 0
+
+        score = (
+            maxTile * 1.0 +
+            empty * 300 +
+            smoothness +
+            monoRows * 50 +
+            cornerBonus * 3
+        )
+
+        return score
