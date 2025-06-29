@@ -3,62 +3,64 @@ import math
 class Player:
     def __init__(self, timeLimit):
         self.timeLimit = timeLimit
-        self.maxDepth = 3
         self._move = None
 
     def findMove(self, state):
+        depth = 1
+        bestMove = None
+        while True:
+            move = self.minimaxRoot(state, depth)
+            if move is not None:
+                bestMove = move
+            else:
+                break
+            depth += 1
+            if depth > 3:
+                break
+        self._move = bestMove
+
+    def minimaxRoot(self, state, depth):
         legalMoves = []
         for move in state.actions():
             child, _ = state.result(move)
             if child._board != state._board:
-                legalMoves.append(move)
+                legalMoves.append((move, child))
 
         if not legalMoves:
-            self._move = None
-            return
+            return None
 
         bestMove = None
         bestScore = -math.inf
-
-        for move in legalMoves:
-            child, _ = state.result(move)
-            score = self.minimax(child, self.maxDepth - 1, -math.inf, math.inf, False)
+        for move, child in legalMoves:
+            score = self.minValue(child, depth - 1)
             if score > bestScore:
                 bestScore = score
                 bestMove = move
+        return bestMove
 
-        self._move = bestMove
-
-    def minimax(self, state, depth, alpha, beta, isMax):
+    def maxValue(self, state, depth):
         if depth == 0 or state.gameOver():
             return self.evaluate(state)
+        v = -math.inf
+        for move in state.actions():
+            child, _ = state.result(move)
+            if child._board != state._board:
+                v = max(v, self.minValue(child, depth - 1))
+        return v
 
-        if isMax:
-            maxEval = -math.inf
-            for move in state.actions():
-                child, _ = state.result(move)
-                if child._board != state._board:
-                    eval = self.minimax(child, depth - 1, alpha, beta, False)
-                    maxEval = max(maxEval, eval)
-                    alpha = max(alpha, eval)
-                    if beta <= alpha:
-                        break
-            return maxEval
-        else:
-            minEval = math.inf
-            empties = [i for i, x in enumerate(state._board) if x == 0]
-            if not empties:
-                return self.evaluate(state)
-            for pos in empties:
-                for val in [1, 2]:  # 2 or 4 tiles
-                    newState, _ = state.result('')  # safe dummy
-                    newState._board[pos] = val
-                    eval = self.minimax(newState, depth - 1, alpha, beta, True)
-                    minEval = min(minEval, eval)
-                    beta = min(beta, eval)
-                    if beta <= alpha:
-                        break
-            return minEval
+    def minValue(self, state, depth):
+        if depth == 0 or state.gameOver():
+            return self.evaluate(state)
+        v = math.inf
+        empties = [i for i, x in enumerate(state._board) if x == 0]
+        if not empties:
+            return self.evaluate(state)
+        for pos in empties:
+            for val in [1, 2]:
+                child = state.clone()
+                child._board[pos] = val
+                v = min(v, self.maxValue(child, depth - 1))
+        return v
 
     def evaluate(self, state):
         empty = sum(1 for x in state._board if x == 0)
@@ -68,16 +70,13 @@ class Player:
             [2, 1, 0, -1],
             [1, 0, -1, -2],
         ]
-
         positional = 0
         for r in range(4):
             for c in range(4):
                 val = state.getTile(r, c)
                 if val > 0:
                     positional += (2 ** val) * gradient[r][c]
-
-        score = state._score + positional + (empty * 50)
-        return score
+        return positional + (empty * 100) + state._score
 
     def getMove(self):
         return self._move
