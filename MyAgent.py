@@ -21,7 +21,6 @@ class Player:
             child, _ = state.result(move)
             score = self.evaluate(child)
             moveScores.append((score, move))
-
         moveScores.sort(reverse=True)
 
         for score, move in moveScores:
@@ -87,32 +86,60 @@ class Player:
         for r in range(4):
             grid.append([state.getTile(r, c) for c in range(4)])
 
-        empty = sum([row.count(0) for row in grid])
-        maxTile = max([max(row) for row in grid])
+        empty = sum(row.count(0) for row in grid)
+        maxTile = max(max(row) for row in grid)
 
         smoothness = 0
         for row in grid:
-            for i in range(len(row) - 1):
+            for i in range(3):
                 smoothness -= abs(row[i] - row[i + 1])
         for c in range(4):
             for r in range(3):
                 smoothness -= abs(grid[r][c] - grid[r + 1][c])
 
-        monoRows = 0
+        mono = 0
         for row in grid:
-            for i in range(len(row) - 1):
+            for i in range(3):
                 if row[i] >= row[i + 1]:
-                    monoRows += 1
+                    mono += 1
 
-        corners = [grid[0][0], grid[0][3], grid[3][0], grid[3][3]]
-        cornerBonus = maxTile if maxTile in corners else 0
+        cornerBonus = 0
+        if grid[0][0] == maxTile:
+            cornerBonus = maxTile * 1.5
+        elif grid[0][3] == maxTile or grid[3][0] == maxTile or grid[3][3] == maxTile:
+            cornerBonus = maxTile * 0.5
 
-        score = (
+        gradientMask = [
+            [20, 10, 5, 1],
+            [10, 5, 2, 1],
+            [5, 2, 1, 0],
+            [1, 1, 0, 0]
+        ]
+        gradient = sum(grid[r][c] * gradientMask[r][c] for r in range(4) for c in range(4))
+
+        isolatedPenalty = 0
+        for r in range(4):
+            for c in range(4):
+                if grid[r][c] == 0:
+                    continue
+                neighbors = 0
+                if r > 0 and grid[r - 1][c] > 0:
+                    neighbors += 1
+                if r < 3 and grid[r + 1][c] > 0:
+                    neighbors += 1
+                if c > 0 and grid[r][c - 1] > 0:
+                    neighbors += 1
+                if c < 3 and grid[r][c + 1] > 0:
+                    neighbors += 1
+                if neighbors == 0:
+                    isolatedPenalty -= grid[r][c] * 2
+
+        return (
             maxTile * 1.0 +
-            empty * 300 +
+            empty * 500 +
             smoothness +
-            monoRows * 50 +
-            cornerBonus * 3
+            mono * 100 +
+            cornerBonus +
+            gradient * 8 +
+            isolatedPenalty
         )
-
-        return score
