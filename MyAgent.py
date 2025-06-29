@@ -1,4 +1,154 @@
 import random
+
+class Player:
+    def __init__(self, timeLimit):
+        self.timeLimit = timeLimit
+        self._move = None
+        self.maxBaseDepth = 4
+        self.cache = {}
+
+    def findMove(self, state):
+        empty = sum(1 for r in range(4) for c in range(4) if state.getTile(r, c) == 0)
+        if empty >= 6:
+            self.maxDepth = self.maxBaseDepth
+        elif empty >= 3:
+            self.maxDepth = self.maxBaseDepth - 1
+        else:
+            self.maxDepth = self.maxBaseDepth - 2
+
+        legalMoves = list(state.actions())
+        if not legalMoves:
+            self._move = None
+            return
+
+        bestMove = None
+        bestScore = -float('inf')
+
+        moveScores = []
+        for move in legalMoves:
+            child, _ = state.result(move)
+            score = self.evaluate(child)
+            moveScores.append((score, move))
+        moveScores.sort(reverse=True)
+
+        for _, move in moveScores:
+            child, _ = state.result(move)
+            score = self.minValue(child, self.maxDepth - 1, -float('inf'), float('inf'))
+            if score > bestScore:
+                bestScore = score
+                bestMove = move
+
+        self._move = bestMove if bestMove else legalMoves[0]
+
+    def getMove(self):
+        return self._move
+
+    def maxValue(self, state, depth, alpha, beta):
+        key = self.hash(state)
+        if key in self.cache and self.cache[key][1] >= depth:
+            return self.cache[key][0]
+
+        if depth == 0 or state.gameOver():
+            v = self.evaluate(state)
+            self.cache[key] = (v, depth)
+            return v
+
+        value = -float('inf')
+        legalMoves = list(state.actions())
+        if not legalMoves:
+            v = self.evaluate(state)
+            self.cache[key] = (v, depth)
+            return v
+
+        moveScores = []
+        for move in legalMoves:
+            child, _ = state.result(move)
+            score = self.evaluate(child)
+            moveScores.append((score, move))
+        moveScores.sort(reverse=True)
+
+        for _, move in moveScores:
+            child, _ = state.result(move)
+            value = max(value, self.minValue(child, depth - 1, alpha, beta))
+            if value >= beta:
+                self.cache[key] = (value, depth)
+                return value
+            alpha = max(alpha, value)
+
+        self.cache[key] = (value, depth)
+        return value
+
+    def minValue(self, state, depth, alpha, beta):
+        key = self.hash(state)
+        if key in self.cache and self.cache[key][1] >= depth:
+            return self.cache[key][0]
+
+        if depth == 0 or state.gameOver():
+            v = self.evaluate(state)
+            self.cache[key] = (v, depth)
+            return v
+
+        value = float('inf')
+        legalMoves = list(state.actions())
+        if not legalMoves:
+            v = self.evaluate(state)
+            self.cache[key] = (v, depth)
+            return v
+
+        for move in legalMoves:
+            child, _ = state.result(move)
+            value = min(value, self.maxValue(child, depth - 1, alpha, beta))
+            if value <= alpha:
+                self.cache[key] = (value, depth)
+                return value
+            beta = min(beta, value)
+
+        self.cache[key] = (value, depth)
+        return value
+
+    def evaluate(self, state):
+        grid = []
+        for r in range(4):
+            grid.append([state.getTile(r, c) for c in range(4)])
+
+        empty = sum(row.count(0) for row in grid)
+        maxTile = max(max(row) for row in grid)
+
+        smoothness = 0
+        for row in grid:
+            for i in range(3):
+                smoothness -= abs(row[i] - row[i + 1])
+        for c in range(4):
+            for r in range(3):
+                smoothness -= abs(grid[r][c] - grid[r + 1][c])
+
+        mono = 0
+        for row in grid:
+            for i in range(3):
+                if row[i] >= row[i + 1]:
+                    mono += 1
+
+        snakeMask = [
+            [15, 14, 13, 12],
+            [8, 9, 10, 11],
+            [7, 6, 5, 4],
+            [0, 1, 2, 3]
+        ]
+        gradient = sum(grid[r][c] * snakeMask[r][c] for r in range(4) for c in range(4))
+
+        return (
+            maxTile * 1.0 +
+            empty * 600 +
+            smoothness +
+            mono * 120 +
+            gradient * 10
+        )
+
+    def hash(self, state):
+        return tuple(state.getTile(r, c) for r in range(4) for c in range(4))
+
+
+'''import random
 import time
 
 class Player:
@@ -143,3 +293,4 @@ class Player:
             gradient * 8 +
             isolatedPenalty
         )
+'''
