@@ -1,4 +1,3 @@
-import random
 import math
 
 class Player:
@@ -6,13 +5,6 @@ class Player:
         self.timeLimit = timeLimit
         self.maxDepth = 3
         self._move = None
-
-        self.weights = [
-            [4, 3, 2, 1],
-            [3, 2, 1, 0],
-            [2, 1, 0, -1],
-            [1, 0, -1, -2],
-        ]
 
     def findMove(self, state):
         legalMoves = []
@@ -54,14 +46,13 @@ class Player:
             return maxEval
         else:
             minEval = math.inf
-            empty = [i for i, x in enumerate(state._board) if x == 0]
-            if not empty:
+            empties = [i for i, x in enumerate(state._board) if x == 0]
+            if not empties:
                 return self.evaluate(state)
-            for pos in empty:
-                for val, prob in [(1, 0.9), (2, 0.1)]:
-                    newState = state.clone()
-                    r, c = divmod(pos, 4)
-                    newState.insertTile((r, c), val)
+            for pos in empties:
+                for val in [1, 2]:  # 2 or 4 tiles
+                    newState, _ = state.result('')  # safe dummy
+                    newState._board[pos] = val
                     eval = self.minimax(newState, depth - 1, alpha, beta, True)
                     minEval = min(minEval, eval)
                     beta = min(beta, eval)
@@ -71,16 +62,22 @@ class Player:
 
     def evaluate(self, state):
         empty = sum(1 for x in state._board if x == 0)
-        grid = [[state.getTile(r, c) for c in range(4)] for r in range(4)]
+        gradient = [
+            [4, 3, 2, 1],
+            [3, 2, 1, 0],
+            [2, 1, 0, -1],
+            [1, 0, -1, -2],
+        ]
 
         positional = 0
         for r in range(4):
             for c in range(4):
                 val = state.getTile(r, c)
                 if val > 0:
-                    positional += (2 ** val) * self.weights[r][c]
+                    positional += (2 ** val) * gradient[r][c]
 
-        return state._score + positional + empty * 50
+        score = state._score + positional + (empty * 50)
+        return score
 
     def getMove(self):
         return self._move
