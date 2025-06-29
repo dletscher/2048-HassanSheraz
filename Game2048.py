@@ -1,5 +1,4 @@
 import random
-import copy
 
 class Game2048:
     def __init__(self):
@@ -11,12 +10,6 @@ class Game2048:
         for _ in range(2):
             self.addRandomTile()
 
-    def clone(self):
-        new = Game2048()
-        new._board = self._board[:]
-        new._score = self._score
-        return new
-
     def actions(self):
         return ['U', 'D', 'L', 'R']
 
@@ -24,6 +17,12 @@ class Game2048:
         child = self.clone()
         score = child.move(move)
         return child, score
+
+    def clone(self):
+        new = Game2048()
+        new._board = self._board[:]
+        new._score = self._score
+        return new
 
     def move(self, direction):
         board = [2 ** x if x > 0 else 0 for x in self._board]
@@ -79,10 +78,6 @@ class Game2048:
 
     def getTile(self, r, c):
         return self._board[r * 4 + c]
-
-    def insertTile(self, pos, val):
-        r, c = pos
-        self._board[r * 4 + c] = val
 
     def addRandomTile(self):
         empties = [i for i, x in enumerate(self._board) if x == 0]
