@@ -6,18 +6,7 @@ class Player:
         self._move = None
 
     def findMove(self, state):
-        depth = 1
-        bestMove = None
-        while True:
-            move = self.minimaxRoot(state, depth)
-            if move is not None:
-                bestMove = move
-            else:
-                break
-            depth += 1
-            if depth > 3:
-                break
-        self._move = bestMove
+        self._move = self.minimaxRoot(state, 3)
 
     def minimaxRoot(self, state, depth):
         legalMoves = []
@@ -64,22 +53,11 @@ class Player:
 
     def evaluate(self, state):
         empty = sum(1 for x in state._board if x == 0)
-        gradient = [
-            [4, 3, 2, 1],
-            [3, 2, 1, 0],
-            [2, 1, 0, -1],
-            [1, 0, -1, -2],
-        ]
-        positional = 0
-        for r in range(4):
-            for c in range(4):
-                val = state.getTile(r, c)
-                if val > 0:
-                    positional += (2 ** val) * gradient[r][c]
-        return positional + (empty * 100) + state._score
+        return state._score + (empty * 100)
 
     def getMove(self):
         return self._move
+
 
 
 '''
