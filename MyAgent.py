@@ -86,7 +86,7 @@ class Player(BasePlayer):
         empty = sum(1 for i in range(4) for j in range(4) if state.getTile(i, j) == 0)
         smoothness = self.calculateSmoothness(state)
         monotonicity = self.calculateMonotonicity(state)
-        return score + empty * 200 + monotonicity * 1.5 + smoothness * 0.1
+        return score + empty * 200 + monotonicity * 2.5 + smoothness * 0.2
 
     def calculateSmoothness(self, state):
         smooth = 0
